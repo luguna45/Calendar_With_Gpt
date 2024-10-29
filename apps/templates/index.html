@@ -26,19 +26,16 @@
 <body>
     <header>
         <h1>Calendar Site</h1>
-        <p>{{session.get('user_id')}}</p>
-        {%if session.get(user_id)%}
-        <p>
-        {{session.get('user_id')}}</p>
-            <form action="/login">
-                
-                <button type="submit">logout</button>
+        {% if current_user.is_authenticated %}
+            {{current_user.id}}
+            <form action="/logout">
+                <button type="submit">Logout</button>
             </form>
 
         {%else%}
             <a href="{{url_for('login')}}">Login</a>
-        {%endif%}
 
+        {% endif %}
 
     </header>
     <div id='calendar-container' style="height: 80%;">
