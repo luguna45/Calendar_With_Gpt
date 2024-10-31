@@ -1,9 +1,11 @@
 from flask import Flask, jsonify, render_template,request,url_for,redirect,flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from flask_login import LoginManager,UserMixin,login_user,login_required,logout_user
+from flask_login import LoginManager,UserMixin,login_user,login_required,logout_user,current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
+from pyFile.Parsing import Parsings
+from pyFile.web_crawler import crawling
 from datetime import datetime
 app = Flask(__name__)
 
@@ -48,6 +50,43 @@ class User(UserMixin,db.Model):
     def __repr__(self):
         return f'<User {self.id}>' 
     
+
+class Event(db.Model):
+    __tablename__ = 'events'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    start = db.Column(db.String(6), nullable=False)
+    # start=db.Column(db.DateTime, nullable=False) 
+    end = db.Column(db.String(100), nullable=True)
+    # end = db.Column(db.DateTime, nullable=True)
+    def to_dict(self):
+        return {
+            "title": self.title,
+            "start": self.start,
+            "end": self.end if self.end else None,
+        }
+#모든 이벤트 가져오기
+@app.route('/events', methods=['GET'])
+# @login_required
+def get_events():
+    # events = Event.query.filter_by(user_id=current_user.id).all()
+    events = Event.query.all()  # 모든 이벤트 쿼리
+    return jsonify([event.to_dict() for event in events])
+
+@app.route('/events', methods=['POST'])
+# @login_required
+def add_event():
+    data = request.json
+    new_event = Event(
+        title=data['title'],
+        start=data['start'],
+        end=data['end'] if data.get('end') else None,
+        # user_id=current_user.id
+    )
+    db.session.add(new_event)
+    db.session.commit()
+    return jsonify(new_event.to_dict()), 201  # 저장 후 이벤트 반환
+
 
 
 
@@ -107,6 +146,43 @@ def logout():
 @app.before_first_request
 def create_tables():
     db.create_all()
+
+
+@app.route('/parsing')
+def webparsing():
+    with app.app_context():
+        # class Event(db.Model):
+        #     __tablename__ = 'events'
+        #     id = db.Column(db.Integer, primary_key=True)
+        #     title = db.Column(db.String(100), nullable=False)
+        #     start = db.Column(db.String(6), nullable=False)
+        #     # start=db.Column(db.DateTime, nullable=False) 
+        #     end = db.Column(db.String(100), nullable=True)
+        #     # end = db.Column(db.DateTime, nullable=True)
+        #     def to_dict(self):
+        #         return {
+        #             "title": self.title,
+        #             "start": self.start,
+        #             "end": self.end if self.end else None,
+        #         }
+
+        for event in Parsings():
+            event_str = event[0]
+            parts = event_str.split(', ')
+            # print(parts)
+            start_date = parts[0].split(',')[0].split('/')[1]
+            end_date =   parts[0].split(',')[1].split('/')[1]
+            title= parts[0].split(',')[2].split('/')[1]
+            # print(end_date)  # 시작 날짜 추출
+            # Event 객체 생성
+            new_event = Event(title=title, start=start_date, end=end_date)
+            print(new_event)
+            # 세션에 추가
+            db.session.add(new_event)
+
+        # 변경사항 저장
+        db.session.commit()
+
 
 
 # 홈페이지 렌더링
